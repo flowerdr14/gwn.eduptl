@@ -1,4 +1,4 @@
-var S={m:{},get:function(k,d){try{var v=localStorage.getItem('np_'+k);if(v)return JSON.parse(v)}catch(e){}return S.m[k]!==undefined?S.m[k]:d},set:function(k,v){S.m[k]=v;try{localStorage.setItem('np_'+k,JSON.stringify(v))}catch(e){}}};
+var S={p:'np_',m:{},get:function(k,d){try{var v=localStorage.getItem(S.p+k);if(v)return JSON.parse(v)}catch(e){}var m=S.m[S.p+k];return m!==undefined?m:d},set:function(k,v){S.m[S.p+k]=v;try{localStorage.setItem(S.p+k,JSON.stringify(v))}catch(e){}}};
 var $=function(s){return document.querySelector(s)};
 var toast=function(m){var t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toast.h);toast.h=setTimeout(function(){t.classList.remove('on')},1800)};
 var esc=function(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})};
@@ -139,7 +139,7 @@ var TOOLS={
   line:function(i){return '<b>'+esc(i.name)+'</b> <span class="sm">'+esc(i.org)+' · '+esc(i.tel)+'</span>'}}
 };
 function openTool(name,pre){
- var T=TOOLS[name],L=S.get(T.k,T.seed||[]),q=pre||'';
+ var T=TOOLS[name],L=S.get(T.k,cl(T.seed||[])),q=pre||'';
  var form='<form class="tf" autocomplete="off">'+T.f.map(function(f){var id='f_'+f[0];
   if(f[2]==='area')return '<label>'+f[1]+'<textarea id="'+id+'" rows="3"></textarea></label>';
   if(f[2]==='select')return '<label>'+f[1]+'<select id="'+id+'">'+f[3].map(function(o){return '<option>'+o+'</option>'}).join('')+'</select></label>';
@@ -195,10 +195,57 @@ var _dt=drawT;drawT=function(){S.set('todos',todos);_dt()};
 todos=S.get('todos',[]);drawT();
 
 /* 내 정보 */
-var P0={n:'6-1',o:''};
-function drawMe(){var p=S.get('me',P0);$('.me b').textContent=p.n+' 선생님';$('.me small').textContent=p.o;$('.av').textContent=p.n.charAt(0)}
+var P0={n:'',o:''};
+function drawMe(){var p=S.get('me',P0);$('.me b').textContent=(/반$/.test(p.n)?p.n+' 선생님':p.n);$('.me small').textContent=p.o;$('.av').textContent=p.n.charAt(0)}
 $('.me').style.cursor='pointer';$('.me').title='눌러서 내 정보 수정';
 $('.me').onclick=function(){var p=S.get('me',P0);
  openM('내 정보','<form class="tf"><label>이름<input id="mn" value="'+esc(p.n)+'"></label><label>소속<input id="mo" value="'+esc(p.o)+'"></label><button type="submit" class="pri">저장</button></form>');
  $('#mb form').onsubmit=function(e){e.preventDefault();S.set('me',{n:$('#mn').value.trim()||p.n,o:$('#mo').value});drawMe();closeM()}};
 drawMe();
+
+/* ===== 계정 / 로그인 ===== */
+var ACC=[];
+for(var g=1;g<=6;g++)for(var c=1;c<=2;c++){var aid='Cw2026'+g+c;ACC.push({id:aid,pw:aid,name:g+'학년 '+c+'반'})}
+for(var o=1;o<=10;o++)ACC.push({id:'Cwoffice'+o,pw:'Cwoffice'+o,name:'교무실 '+o});
+ACC.push({id:'Cwrector',pw:'Cwrector',name:'교장선생님'},{id:'Cwrector2',pw:'Cwrector2',name:'교감선생님'});
+
+function cl(x){return JSON.parse(JSON.stringify(x))}
+var D={
+ notices:[['업무포털','n0','교무업무영역 수정사항 안내(6.22.기준)','2023-06-23','업무포털'],['업무포털','n0','06.22. 기준 질의응답 안내','2023-06-22','업무포털'],['K-에듀파인','k','4세대 지능형나이스 연계 작업으로 인한 K-에듀파인 접속 제한 안내','2023-06-21','K-에듀파인'],['업무포털','n0','[복무] 연가 잔여일수','2023-06-19','업무포털'],['나이스','n','나이스 정기 점검 일정 안내','2023-06-16','나이스']],
+ errs:[['06.22. 기준 질의응답 안내','2023-06-22',''],['[복무] 연가 잔여일수','2023-06-19','']],
+ imps:[['교무업무영역 수정사항 안내(6.22.기준)','2023-06-23','']]
+};
+function loadState(){
+ notices=S.get('notices',cl(D.notices));errs=S.get('errs',cl(D.errs));imps=S.get('imps',cl(D.imps));
+ todos=S.get('todos',[]);fl='전체';cur='나이스';
+ drawN();drawSide();drawT();drawMe();drawSys();
+}
+
+var lg=document.createElement('div');lg.id='lg';lg.className='lg';
+lg.innerHTML='<form class="lbox tf" id="lf"><img alt="" src="'+$('.brand img').src+'"><h1>경원남도교육청</h1><p>업무포털 로그인</p><label>아이디<input id="lid" autocomplete="username" autocapitalize="off" spellcheck="false" required></label><label>비밀번호<input id="lpw" type="password" autocomplete="current-password" required></label><label class="ck"><input type="checkbox" id="lsh"> 비밀번호 표시</label><div id="le" role="alert"></div><button class="pri" type="submit">로그인</button></form>';
+document.body.appendChild(lg);
+$('#lsh').onchange=function(){$('#lpw').type=this.checked?'text':'password'};
+
+function enter(a){
+ S.p='np_'+a.id.toLowerCase()+'_';P0.n=a.name;P0.o='';
+ document.body.classList.remove('locked');lg.hidden=true;sec=3600;loadState();toast(a.name+' 로그인되었습니다');
+}
+function logout(){
+ try{sessionStorage.removeItem('np_sess')}catch(x){}
+ closeM();document.body.classList.add('locked');lg.hidden=false;
+ $('#lf').reset();$('#le').textContent='';$('#lpw').type='password';$('#lid').focus();
+}
+$('#lf').onsubmit=function(e){
+ e.preventDefault();
+ var id=$('#lid').value.trim().toLowerCase(),pw=$('#lpw').value.trim().toLowerCase();
+ var a=ACC.filter(function(x){return x.id.toLowerCase()===id&&x.pw.toLowerCase()===pw})[0];
+ if(!a){$('#le').textContent='아이디 또는 비밀번호가 올바르지 않습니다.';$('#lpw').select();return}
+ try{sessionStorage.setItem('np_sess',a.id)}catch(x){}
+ enter(a);
+};
+var lo=document.createElement('button');lo.textContent='로그아웃';lo.onclick=logout;$('.top').appendChild(lo);
+setInterval(function(){if(sec<=0&&lg.hidden){logout();$('#le').textContent='자동 로그아웃되었습니다. 다시 로그인해 주세요.'}},1000);
+
+var sid=null;try{sid=sessionStorage.getItem('np_sess')}catch(x){}
+var a0=ACC.filter(function(x){return x.id===sid})[0];
+if(a0)enter(a0);else{lg.hidden=false;document.body.classList.add('locked')}
